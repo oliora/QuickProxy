@@ -1,0 +1,3 @@
+[hidden] { display: none !important; }
+#proxy-settings input,textarea { box-sizing: border-box; }
+#proxy-settings > fieldset { margin-bottom: 16px; }

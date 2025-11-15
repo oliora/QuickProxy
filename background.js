@@ -1,124 +1,198 @@
 // TODO:
-// 0. Rename to Quick Proxy and pack as a proper extension
-// 1. Remember proxy state between Firefox restarts
-// 2. Set proxySettings in extension settings
-// 3. Release 0.1 version
-// 4. More than two proxy settings
-// 5. Auto pickup VPN changes.
+// 1. Options page - load and save
+// 2. Verify how setting a wrong browser proxy settings work, use red icon to indicate an error
+// 3. Open settings page on button click extension is not allowed in private windows mode or config is wrong
+//    or QuickProxy config was not set (proxy just initialized)
+// 3. ? Verify edited settings
+// 4. Release 0.1 version
+
+// 3. If run in private windows is not allowed show a top badge with instruction in preferences
+// 4. More than two proxy settings, organaise them in tabs and allow to save each one individually
+// 5. Automatically enable quick proxy on VPN connection
 //    May require communication with local scripts and "nativeMessaging" permission
 //    See e.g. https://kod.ujo.moe/jadedctrl/shellfox
 
 const defaultSettingsName = "default";
-const proxyEnabledSettingsName = "auto-config";
+const quickProxySettingsName = "quick-proxy";
 
-const allSettings = {
-    "default": {
-        "proxyType": "none",
-    },
-    "auto-config": {
-        "proxyType": "autoConfig",
-        "autoConfigUrl": "file:///Users/oliora/davinci/firefox-proxy.js"
-    },
+// Global state
+const quickProxy = {
+    proxySettings: undefined,
+    currentSettingsName: undefined,
+    isAllowedIncognitoAccess: true,
+    canControlSettings: true,
+    isConfigured: false,
 };
 
-let currentSettingsName;
-let settingsControlDisabled = false;
-let canControlSettings = false;
-
-function disableBrowserButton(reason) {
-    browser.browserAction.disable();
-    browser.browserAction.setIcon({});
-    browser.browserAction.setTitle({
-        title: `QuickProxy deactivated: ${reason}`
+async function disableBrowserAction(reason) {
+    browser.action.disable();
+    browser.action.setTitle({
+        title: `QuickProxy error: ${reason}`
     });
+    await browser.action.setIcon({});
 }
 
-function updateBrowserButton() {
-    if (settingsControlDisabled) {
-        disableBrowserButton("Open QuickProxy extension settings and allow 'Run in Private Windows'");
-        return;
-    }
-
-    if (!canControlSettings) {
-        disableBrowserButton("Extension other than QuickProxy controls proxy settings");
-        return;
-    }
-
-    const isProxyEnabled = currentSettingsName !== defaultSettingsName;
-    if (isProxyEnabled) {
-        browser.browserAction.setIcon({
+async function setBrowserAction(active) {
+    if (active) {
+        browser.action.setTitle({
+            title: `QuickProxy active (using QuickProxy proxy settings)`
+        });
+        await browser.action.setIcon({
             path: {
-                48: "icons/app-active.svg" // TODO: support dark theme
+                48: "icons/app-active.svg"
             }
         });
-        browser.browserAction.setTitle({
-            title: `QuickProxy: proxy enabled`
-        });
     } else {
-        browser.browserAction.setIcon({});
-        browser.browserAction.setTitle({
-            title: `QuickProxy: proxy disabled`
+        browser.action.setTitle({
+            title: `QuickProxy inactive (using Default proxy settings)`
         });
+        await browser.action.setIcon({});
     }
 
-    browser.browserAction.enable();
+    browser.action.enable();
 }
 
-function onProxySettingsChanged(details) {
-    console.debug(`Get proxy settings: ${JSON.stringify(details.value)}`);
-
-    canControlSettings = (details.levelOfControl === "controllable_by_this_extension") || (details.levelOfControl === "controlled_by_this_extension");
-    if (!canControlSettings) { 
-        console.error(`Extension cannot control proxy settings, levelOfControl=${details.levelOfControl}`);
-    }
-    updateBrowserButton();
-}
-
-function setProxySettings(settingsName) {
-    if (settingsControlDisabled) {
-        console.error("Cannot set proxy settings: extension is not allowed to run in private windows");
-        return;
-    }
-    if (!canControlSettings) {
-        console.error("Cannot set proxy settings: another extension is controlling proxy settings");
+async function updateBrowserAction() {
+    if (!quickProxy.isAllowedIncognitoAccess) {
+        await disableBrowserAction("QuickProxy extension is not allowed to run in private windows (enable in QuickProxy extension details)");
         return;
     }
 
-    const settings = allSettings[settingsName];
-    console.debug(`Set proxy settings '${settingsName}': ${JSON.stringify(settings)}`);
+    if (!quickProxy.canControlSettings) {
+        await disableBrowserAction("Extension other than QuickProxy controls proxy settings");
+        return;
+    }
 
-    browser.proxy.settings.set({
-        value: settings
-    }).then((changed) => {
-        if (changed) {
-            console.info(`Proxy settings '${settingsName}' set`);
-            currentSettingsName = settingsName;
-        } else {
-            console.error("Cannot set proxy settings");
-            canControlSettings = false;
+    await setBrowserAction(!(quickProxy.currentSettingsName === defaultSettingsName));
+}
+
+function setIsAllowedIncognitoAccess(allowed) {
+    if (!allowed && quickProxy.isAllowedIncognitoAccess) {
+        console.error("Extension is not allowed to run in private windows");
+    }
+    quickProxy.isAllowedIncognitoAccess = allowed;
+}
+
+function setLevelOfControl(levelOfControl) {
+    const newCanControlSettings = (levelOfControl === "controllable_by_this_extension") || (levelOfControl === "controlled_by_this_extension");
+    if (quickProxy.canControlSettings && !newCanControlSettings) { 
+        console.error(`Extension cannot control proxy settings, levelOfControl=${levelOfControl}`);
+    }
+    quickProxy.canControlSettings = newCanControlSettings;
+}
+
+async function applyProxySettings(settingsName) {
+    if (quickProxy.isAllowedIncognitoAccess && quickProxy.canControlSettings) {
+        const settings = quickProxy.proxySettings[settingsName]
+        console.debug(`Setting browser proxy settings '${settingsName}': ${JSON.stringify(settings)}`);
+
+        try {
+            const changed = await browser.proxy.settings.set({
+                value: settings
+            });
+
+            if (!changed) {
+                console.error("Cannot set proxy settings");
+                return;
+            }
+
+            console.info(`Browser proxy settings set to '${settingsName}': ${JSON.stringify(settings)}`);
+            quickProxy.currentSettingsName = settingsName;
+            await browser.storage.local.set({
+                currentSettingsName: settingsName,
+            });
+        } catch (error) {
+            console.error(`Cannot set proxy settings. ${error}`);
+            if (error.message.includes("private browsing")) {
+                setIsAllowedIncognitoAccess(false);
+            }
         }
-        updateBrowserButton();
-    }).catch((error) => {
-        console.error(`Cannot set proxy settings. ${error}`);
-        settingsControlDisabled = true;
-        updateBrowserButton();
-    });
+    }
 }
 
-browser.proxy.settings.onChange.addListener((details) => {
-    console.info("Proxy settings changed");
-    onProxySettingsChanged(details);
-});
+async function onBrowserProxySettingsChanged(browserSettings) {
+    console.info(`Proxy settings changed: ${JSON.stringify(details.value)}`);
 
-browser.proxy.settings.get({}).then((details) => {
-    onProxySettingsChanged(details);
-    setProxySettings(defaultSettingsName); // To take control over proxy settings
-});
+    if (quickProxy.proxySettings === undefined) {
+        await restoreOrInitState();
+    }
 
-browser.browserAction.onClicked.addListener(() => {
-	console.debug("Browser button clicked");    
-    const settingsName = (currentSettingsName === defaultSettingsName) ? proxyEnabledSettingsName : defaultSettingsName;
-    setProxySettings(settingsName);
-});
+    setLevelOfControl(browserSettings.levelOfControl);
+    await updateBrowserAction();
+}
 
-console.info("Quick Proxy started");
+async function onStorageSettingsChanged(changes) {
+    const proxySettingsChange = changes.proxySettings;
+    if (proxySettingsChange == undefined) {
+        return;
+    }
+
+    const proxySettings = proxySettingsChange.newValue;
+    console.debug(`Settings changed: ${JSON.stringify(proxySettings)}`);
+
+    if (quickProxy.proxySettings === undefined || proxySettings === undefined) {
+        await restoreOrInitState();
+    } else {
+        quickProxy.proxySettings = proxySettings;
+    }
+
+    await applyProxySettings(quickProxy.currentSettingsName);
+    await updateBrowserAction();
+}
+
+async function onBrowserActionClicked() {
+	console.debug("Browser action clicked");
+
+    if (quickProxy.proxySettings === undefined) {
+        await restoreOrInitState();
+    }
+
+    const settingsName = !(quickProxy.currentSettingsName === defaultSettingsName) ? defaultSettingsName : quickProxySettingsName;
+    await applyProxySettings(settingsName);
+    await updateBrowserAction();
+}
+
+async function restoreOrInitState(isInit = false) {
+    console.debug("RestoreOrInitState");
+
+    const browserSettings = await browser.proxy.settings.get({});
+    let storedState = await browser.storage.local.get();
+
+    if (storedState.proxySettings === undefined) {
+        if (!isInit) {
+            console.warn("QuickProxy storage was wiped or corrupted");
+        }
+        console.info(`Initializing QuickProxy settings from the browser proxy settings: ${JSON.stringify(browserSettings)}`);
+
+        storedState = {
+            currentSettingsName: defaultSettingsName,
+            proxySettings: {
+                [defaultSettingsName]: Object.assign({}, browserSettings.value),
+                [quickProxySettingsName]: Object.assign({}, browserSettings.value),
+            },
+            isConfigured: false,
+        }
+        await browser.storage.local.set(storedState);
+    } else {
+        console.info(`Loaded state: ${JSON.stringify(storedState)}`);
+    }
+
+    Object.assign(quickProxy, storedState);
+    setLevelOfControl(browserSettings.levelOfControl);
+    setIsAllowedIncognitoAccess(await browser.extension.isAllowedIncognitoAccess());
+}
+
+async function init() {
+    console.debug("Init");
+
+    await restoreOrInitState(true);
+    await applyProxySettings(quickProxy.currentSettingsName); // Takes control over proxy settings
+    await updateBrowserAction();
+}
+
+browser.proxy.settings.onChange.addListener(onBrowserProxySettingsChanged);
+browser.storage.local.onChanged.addListener(onStorageSettingsChanged);
+browser.action.onClicked.addListener(onBrowserActionClicked);
+browser.runtime.onInstalled.addListener(init);
+
+console.info("QuickProxy started");
