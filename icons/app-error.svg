@@ -9,7 +9,7 @@
    class="bi bi-layer-forward"
    version="1.1"
    id="svg2"
-   sodipodi:docname="app-active.svg"
+   sodipodi:docname="app-error.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -29,18 +29,19 @@
      inkscape:zoom="1.04"
      inkscape:cx="399.51923"
      inkscape:cy="400"
-     inkscape:window-width="1680"
-     inkscape:window-height="989"
-     inkscape:window-x="8"
-     inkscape:window-y="51"
+     inkscape:window-width="1552"
+     inkscape:window-height="971"
+     inkscape:window-x="81"
+     inkscape:window-y="44"
      inkscape:window-maximized="0"
-     inkscape:current-layer="svg2" />
+     inkscape:current-layer="svg2"
+     showgrid="false" />
   <path
      d="M8.354.146a.5.5 0 0 0-.708 0l-3 3a.5.5 0 0 0 0 .708l1 1a.5.5 0 0 0 .708 0L7 4.207V12H1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H9V4.207l.646.647a.5.5 0 0 0 .708 0l1-1a.5.5 0 0 0 0-.708l-3-3z"
      id="path1"
-     style="fill:#55d400" />
+     style="fill:#ff0000" />
   <path
      d="M1 7a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h4.5a.5.5 0 0 0 0-1H1V8h4.5a.5.5 0 0 0 0-1H1zm9.5 0a.5.5 0 0 0 0 1H15v2h-4.5a.5.5 0 0 0 0 1H15a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-4.5z"
      id="path2"
-     style="fill:#55d400" />
+     style="fill:#ff0000" />
 </svg>

@@ -3,7 +3,7 @@
     "name": "Quick Proxy",
     "version": "0.1",
 	"author": "Andrey Upadyshev",
-    "description": "Quick switch between proxy settings",
+    "description": "Quick switch between proxy configurations",
     "icons": {
         "48": "icons/app.svg",
         "96": "icons/app.svg"

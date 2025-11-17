@@ -1,3 +1,9 @@
 [hidden] { display: none !important; }
 #proxy-settings input,textarea { box-sizing: border-box; }
 #proxy-settings > fieldset { margin-bottom: 16px; }
+#error { background-color: red; padding: 16px; color: white; text-align: center; }
+.button-container {
+  display: flex;
+  justify-content: flex-end; /* aligns content to the right */
+  gap: 10px; /* optional spacing between buttons */
+}

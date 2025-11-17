@@ -1,9 +1,9 @@
 QuickProxy Firefox Extension
 ============================
 
-QuickProxy is a Firefox extension that allows you to quickly switch between different proxy settings.
+QuickProxy is a Firefox extension that allows you to quickly switch between different proxy configurations.
 
-Currently, only two proxy settings are supported. Please create an issue if you need additional options.
+Currently, only two proxy configurations are supported. Please create an issue if you need additional options.
 
 Contributing
 ------------

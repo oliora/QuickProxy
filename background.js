@@ -1,16 +1,48 @@
-// TODO:
-// 1. Options page - load and save
-// 2. Verify how setting a wrong browser proxy settings work, use red icon to indicate an error
-// 3. Open settings page on button click extension is not allowed in private windows mode or config is wrong
-//    or QuickProxy config was not set (proxy just initialized)
-// 3. ? Verify edited settings
-// 4. Release 0.1 version
+/*
+    Proxy settings
+    ==============
 
-// 3. If run in private windows is not allowed show a top badge with instruction in preferences
-// 4. More than two proxy settings, organaise them in tabs and allow to save each one individually
-// 5. Automatically enable quick proxy on VPN connection
-//    May require communication with local scripts and "nativeMessaging" permission
-//    See e.g. https://kod.ujo.moe/jadedctrl/shellfox
+    https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/proxy/settings
+
+    autoConfigUrl
+        string. A URL to use to configure the proxy.
+
+    autoLogin
+        boolean. Don't prompt for authentication if the password is saved. Defaults to false.
+
+    http
+        string. The address of the HTTP proxy. Can include a port.
+
+    httpProxyAll
+        boolean. Use the HTTP proxy server for all protocols. Defaults to false.
+
+    passthrough
+        string. A comma-separated list of hosts that shouldn't be proxied. Can be defined as:
+
+            HOST_NAME[:PORT], for example: example.com or example.com:1234
+            IP_LITERAL[:PORT]
+            IP_LITERAL/PREFIX_LENGTH_IN_BITS, using CIDR notation
+            <local>, to bypass proxying for all hostnames that don't contain periods.
+
+        You can use IPv6 addresses. For example, [::123].
+
+        Hosts localhost, 127.0.0.1, and [::1] are never proxied.
+
+    proxyDNS
+        boolean. Whether to proxy DNS when using a SOCKS proxy. Defaults to true when using SOCKS5 and false when using SOCKS4. Prior to Firefox 128, it defaulted to false for SOCKS4 and SOCKS5.
+
+    proxyType
+        string. The type of proxy to use. This may take: "none", "autoDetect", "system", "manual", "autoConfig". Defaults to "system".
+
+    socks
+        string. The address of the SOCKS proxy. Can include a port.
+
+    socksVersion
+        integer. The version of the SOCKS proxy. May be 4 or 5. Defaults to 5.
+
+    ssl
+        string. The address of the TLS/SSL proxy. Can include a port.
+*/
 
 const defaultSettingsName = "default";
 const quickProxySettingsName = "quick-proxy";
@@ -21,15 +53,26 @@ const quickProxy = {
     currentSettingsName: undefined,
     isAllowedIncognitoAccess: true,
     canControlSettings: true,
-    isConfigured: false,
 };
 
-async function disableBrowserAction(reason) {
+async function disableBrowserAction(title) {
     browser.action.disable();
     browser.action.setTitle({
-        title: `QuickProxy error: ${reason}`
+        title: title,
     });
     await browser.action.setIcon({});
+}
+
+async function setBrowserActionError(title) {
+    browser.action.setTitle({
+        title: title,
+    });
+    await browser.action.setIcon({
+        path: {
+            48: "icons/app-error.svg"
+        }
+    });
+    browser.action.enable();
 }
 
 async function setBrowserAction(active) {
@@ -48,18 +91,17 @@ async function setBrowserAction(active) {
         });
         await browser.action.setIcon({});
     }
-
     browser.action.enable();
 }
 
 async function updateBrowserAction() {
     if (!quickProxy.isAllowedIncognitoAccess) {
-        await disableBrowserAction("QuickProxy extension is not allowed to run in private windows (enable in QuickProxy extension details)");
+        await setBrowserActionError("QuickProxy is not allowed to run in private windows, click to open settings");
         return;
     }
 
     if (!quickProxy.canControlSettings) {
-        await disableBrowserAction("Extension other than QuickProxy controls proxy settings");
+        await disableBrowserAction("Quick proxy is disabled because another extension controls proxy settings");
         return;
     }
 
@@ -75,7 +117,7 @@ function setIsAllowedIncognitoAccess(allowed) {
 
 function setLevelOfControl(levelOfControl) {
     const newCanControlSettings = (levelOfControl === "controllable_by_this_extension") || (levelOfControl === "controlled_by_this_extension");
-    if (quickProxy.canControlSettings && !newCanControlSettings) { 
+    if (quickProxy.canControlSettings && !newCanControlSettings) {
         console.error(`Extension cannot control proxy settings, levelOfControl=${levelOfControl}`);
     }
     quickProxy.canControlSettings = newCanControlSettings;
@@ -111,7 +153,7 @@ async function applyProxySettings(settingsName) {
 }
 
 async function onBrowserProxySettingsChanged(browserSettings) {
-    console.info(`Proxy settings changed: ${JSON.stringify(details.value)}`);
+    console.info(`Proxy settings changed. levelOfControl:${browserSettings.levelOfControl}, value: ${JSON.stringify(browserSettings.value)}`);
 
     if (quickProxy.proxySettings === undefined) {
         await restoreOrInitState();
@@ -147,6 +189,11 @@ async function onBrowserActionClicked() {
         await restoreOrInitState();
     }
 
+    if (!quickProxy.isAllowedIncognitoAccess) {
+        browser.runtime.openOptionsPage();
+        return;
+    }
+
     const settingsName = !(quickProxy.currentSettingsName === defaultSettingsName) ? defaultSettingsName : quickProxySettingsName;
     await applyProxySettings(settingsName);
     await updateBrowserAction();
@@ -160,17 +207,20 @@ async function restoreOrInitState(isInit = false) {
 
     if (storedState.proxySettings === undefined) {
         if (!isInit) {
-            console.warn("QuickProxy storage was wiped or corrupted");
+            console.warn("QuickProxy storage was wiped");
         }
         console.info(`Initializing QuickProxy settings from the browser proxy settings: ${JSON.stringify(browserSettings)}`);
+
+        const defaultSettings = Object.assign({}, browserSettings.value);
+        if (defaultSettings.proxyType != "none")
+            defaultSettings.proxyType = "none";
 
         storedState = {
             currentSettingsName: defaultSettingsName,
             proxySettings: {
-                [defaultSettingsName]: Object.assign({}, browserSettings.value),
+                [defaultSettingsName]: defaultSettings,
                 [quickProxySettingsName]: Object.assign({}, browserSettings.value),
             },
-            isConfigured: false,
         }
         await browser.storage.local.set(storedState);
     } else {
@@ -190,9 +240,17 @@ async function init() {
     await updateBrowserAction();
 }
 
-browser.proxy.settings.onChange.addListener(onBrowserProxySettingsChanged);
-browser.storage.local.onChanged.addListener(onStorageSettingsChanged);
-browser.action.onClicked.addListener(onBrowserActionClicked);
-browser.runtime.onInstalled.addListener(init);
+browser.proxy.settings.onChange.addListener((browserSettings) => {
+    onBrowserProxySettingsChanged(browserSettings);
+});
+browser.storage.local.onChanged.addListener((changes) => {
+    onStorageSettingsChanged(changes);
+});
+browser.action.onClicked.addListener(() => {
+    onBrowserActionClicked();
+});
+browser.runtime.onInstalled.addListener(() => {
+    init();
+});
 
 console.info("QuickProxy started");
