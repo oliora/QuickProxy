@@ -8,7 +8,7 @@ Currently, only two proxy configurations are supported. Please create an issue i
 Contributing
 ------------
 
-If you find a bug or have ideas for improvement, don’t hesitate to open an issue or a pull request.
+If you find a bug or have ideas for improvement, don’t hesitate to [open an issue](https://github.com/oliora/QuickProxy/issues/new) or a pull request.
 
 License
 -------
