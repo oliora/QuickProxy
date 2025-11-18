@@ -78,11 +78,11 @@ return `
 
 const settingsBlocks = [
     {
-        settingsTitle: "Default proxy settings",
+        settingsTitle: "Default proxy configuration",
         settingsName: "default"
     },
     {
-        settingsTitle: "QuickProxy proxy settings",
+        settingsTitle: "QuickProxy proxy configuration",
         settingsName: "quick-proxy"
     }
 ]

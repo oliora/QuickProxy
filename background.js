@@ -78,7 +78,7 @@ async function setBrowserActionError(title) {
 async function setBrowserAction(active) {
     if (active) {
         browser.action.setTitle({
-            title: `QuickProxy active (using QuickProxy proxy settings)`
+            title: `QuickProxy active (using QuickProxy proxy configuration)`
         });
         await browser.action.setIcon({
             path: {
@@ -87,7 +87,7 @@ async function setBrowserAction(active) {
         });
     } else {
         browser.action.setTitle({
-            title: `QuickProxy inactive (using Default proxy settings)`
+            title: `QuickProxy inactive (using Default proxy configuration)`
         });
         await browser.action.setIcon({});
     }
@@ -211,14 +211,10 @@ async function restoreOrInitState(isInit = false) {
         }
         console.info(`Initializing QuickProxy settings from the browser proxy settings: ${JSON.stringify(browserSettings)}`);
 
-        const defaultSettings = Object.assign({}, browserSettings.value);
-        if (defaultSettings.proxyType != "none")
-            defaultSettings.proxyType = "none";
-
         storedState = {
             currentSettingsName: defaultSettingsName,
             proxySettings: {
-                [defaultSettingsName]: defaultSettings,
+                [defaultSettingsName]: Object.assign({}, browserSettings.value),
                 [quickProxySettingsName]: Object.assign({}, browserSettings.value),
             },
         }
