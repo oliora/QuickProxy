@@ -5,6 +5,11 @@ QuickProxy is a Firefox extension that allows you to quickly switch between diff
 
 Currently, only two proxy configurations are supported. Please create an issue if you need additional options.
 
+Installation
+------------
+
+You can install it from Firefox Add-ons: [link](https://addons.mozilla.org/en-GB/firefox/addon/quick-proxy/).
+
 Contributing
 ------------
 
