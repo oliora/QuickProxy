@@ -23,7 +23,7 @@ All content in this repository, excluding the third-party components listed belo
 Third-party Components
 ----------------------
 
-1. Options page CSS - [nice-forms.css](https://github.com/nielsVoogt/nice-forms.css) - MIT License Copyright (c) 2021 Niels Voogt
+1. Preferences page CSS - [nice-forms.css](https://github.com/nielsVoogt/nice-forms.css) - MIT License Copyright (c) 2021 Niels Voogt
 
 2. Icons - [Bootstrap Icons](https://getbootstrap.com/) - MIT License Copyright (c) 2019-2024 The Bootstrap Authors
 
